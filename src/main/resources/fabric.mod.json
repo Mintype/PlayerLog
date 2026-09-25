@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "playerlog",
+  "version": "${version}",
+  "name": "PlayerLog",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/playerlog/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "org.mintype.playerlog.client.PlayerlogDataGenerator"
+    ],
+    "client": [
+      "org.mintype.playerlog.client.PlayerlogClient"
+    ],
+    "main": [
+      "org.mintype.playerlog.Playerlog"
+    ]
+  },
+  "mixins": [
+    "playerlog.mixins.json",
+    {
+      "config": "playerlog.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
