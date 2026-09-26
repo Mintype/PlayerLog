@@ -3,11 +3,10 @@
   "id": "playerlog",
   "version": "${version}",
   "name": "PlayerLog",
-  "description": "",
-  "authors": [],
+  "description": "Server-side player event monitoring and notifications.",
+  "authors": ["Mintype"],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/playerlog/icon.png",
   "environment": "*",
   "entrypoints": {
     "fabric-datagen": [
