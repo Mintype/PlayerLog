@@ -349,6 +349,54 @@ public class Playerlog implements ModInitializer {
                                     return 1;
                                 }))
 
+                        // /playerlog help
+                        .then(Commands.literal("help")
+                                .executes(context -> {
+                                    CommandSourceStack source = context.getSource();
+
+                                    source.sendSuccess(
+                                            () -> Component.empty()
+                                                    .append(
+                                                            Component.literal(
+                                                                    "PlayerLog Commands\n"
+                                                            ).withStyle(ChatFormatting.GOLD)
+                                                    )
+                                                    .append(
+                                                            Component.literal(
+                                                                    "/pl - Show PlayerLog status\n"
+                                                            ).withStyle(ChatFormatting.GRAY)
+                                                    )
+                                                    .append(
+                                                            Component.literal(
+                                                                    "/pl enable - Enable PlayerLog\n"
+                                                            ).withStyle(ChatFormatting.GRAY)
+                                                    )
+                                                    .append(
+                                                            Component.literal(
+                                                                    "/pl disable - Disable PlayerLog\n"
+                                                            ).withStyle(ChatFormatting.GRAY)
+                                                    )
+                                                    .append(
+                                                            Component.literal(
+                                                                    "/pl reload - Reload the config\n"
+                                                            ).withStyle(ChatFormatting.GRAY)
+                                                    )
+                                                    .append(
+                                                            Component.literal(
+                                                                    "/pl tp <player> - Teleport to a player\n"
+                                                            ).withStyle(ChatFormatting.GRAY)
+                                                    )
+                                                    .append(
+                                                            Component.literal(
+                                                                    "/pl help - Show this help message"
+                                                            ).withStyle(ChatFormatting.GRAY)
+                                                    ),
+                                            false
+                                    );
+
+                                    return 1;
+                                }))
+
                         // /playerlog tp <player>
                         .then(Commands.literal("tp")
                                 .requires(source -> {
