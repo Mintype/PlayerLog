@@ -26,10 +26,10 @@ public class ModConfig {
         public boolean damage = true;
         public boolean drowning = true;
         public boolean creeperThreat = true;
+
         public boolean fire = true;
         public boolean fallDamage = true;
         public boolean projectileDamage = true;
-        public boolean voidDamage = true;
     }
 
     public static class Damage {

@@ -39,6 +39,21 @@ public class Playerlog implements ModInitializer {
                         return;
                     }
 
+                    if (source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)
+                            && !config.notifications.fire) {
+                        return;
+                    }
+
+                    if (source.is(net.minecraft.tags.DamageTypeTags.IS_FALL)
+                            && !config.notifications.fallDamage) {
+                        return;
+                    }
+
+                    if (source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)
+                            && !config.notifications.projectileDamage) {
+                        return;
+                    }
+
                     if (damageTaken < config.damage.minimumDamage) {
                         return;
                     }
