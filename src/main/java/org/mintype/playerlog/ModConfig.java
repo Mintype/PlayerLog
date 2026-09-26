@@ -34,7 +34,7 @@ public class ModConfig {
 
     public static class Damage {
         public double minimumDamage = 1.0;
-        public double lowHealthThreshold = 4.0; // hearts
+        public double lowHealthThreshold = 6.0; // hearts
         public boolean includeSource = true;
         public boolean includeHealth = true;
     }

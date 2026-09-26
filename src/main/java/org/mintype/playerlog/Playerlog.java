@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -17,6 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.GameType;
 
 import java.util.HashMap;
@@ -128,6 +130,112 @@ public class Playerlog implements ModInitializer {
                 (dispatcher, registryAccess, environment) ->
                         registerCommands(dispatcher)
         );
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            ModConfig config = ModConfig.INSTANCE;
+
+            if (!config.enabled) {
+                return;
+            }
+
+            if (!config.notifications.creeperThreat) {
+                return;
+            }
+
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+
+                // Don't alert about spectators
+                if (player.gameMode.getGameModeForPlayer()
+                        == GameType.SPECTATOR) {
+                    continue;
+                }
+
+                Creeper creeper = findThreateningCreeper(player);
+
+                if (creeper == null) {
+                    continue;
+                }
+
+                if (isOnCooldown(
+                        creeperThreatCooldowns,
+                        player.getUUID(),
+                        config.cooldowns.creeperThreat
+                )) {
+                    continue;
+                }
+
+                Component message = createCreeperThreatMessage(
+                        player,
+                        creeper
+                );
+
+                notifyRecipients(server, message);
+            }
+        });
+    }
+
+    private static Creeper findThreateningCreeper(
+            ServerPlayer player
+    ) {
+        ModConfig.CreeperThreat config =
+                ModConfig.INSTANCE.creeperThreat;
+
+        double range = config.detectionRange;
+
+        for (Creeper creeper : player.level().getEntitiesOfClass(
+                Creeper.class,
+                player.getBoundingBox().inflate(range)
+        )) {
+
+            if (creeper.getTarget() != player) {
+                continue;
+            }
+
+            if (config.requireLineOfSight
+                    && !creeper.hasLineOfSight(player)) {
+                continue;
+            }
+
+            return creeper;
+        }
+
+        return null;
+    }
+
+    private static MutableComponent createCreeperThreatMessage(
+            ServerPlayer player,
+            Creeper creeper
+    ) {
+        ModConfig config = ModConfig.INSTANCE;
+
+        MutableComponent message = Component.empty()
+                .append(
+                        Component.literal(config.chat.prefix + " ")
+                                .withStyle(ChatFormatting.GRAY)
+                )
+                .append(
+                        player.getName().copy()
+                                .withStyle(ChatFormatting.YELLOW)
+                )
+                .append(
+                        Component.literal(" is being targeted by a Creeper!")
+                                .withStyle(ChatFormatting.RED)
+                );
+
+        if (config.chat.includeCoordinates) {
+            message.append(
+                    Component.literal(
+                            String.format(
+                                    " [%d, %d, %d]",
+                                    player.blockPosition().getX(),
+                                    player.blockPosition().getY(),
+                                    player.blockPosition().getZ()
+                            )
+                    ).withStyle(ChatFormatting.DARK_AQUA)
+            );
+        }
+
+        return message;
     }
 
     private static void registerCommands(
