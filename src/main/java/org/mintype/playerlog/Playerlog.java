@@ -15,6 +15,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.level.GameType;
 
@@ -27,6 +28,8 @@ public class Playerlog implements ModInitializer {
     public static final String MOD_ID = "playerlog";
 
     private static final Map<UUID, Long> damageCooldowns = new HashMap<>();
+    private static final Map<UUID, Long> creeperThreatCooldowns = new HashMap<>();
+    private static final Map<UUID, Long> drowningCooldowns = new HashMap<>();
 
     @Override
     public void onInitialize() {
@@ -48,6 +51,27 @@ public class Playerlog implements ModInitializer {
                         return;
                     }
 
+                    boolean isDrowning =
+                            source.is(net.minecraft.tags.DamageTypeTags.IS_DROWNING);
+
+                    if (isDrowning) {
+                        if (!config.notifications.drowning) {
+                            return;
+                        }
+
+                        if (damagedPlayer.getHealth() > config.drowning.healthThreshold) {
+                            return;
+                        }
+
+                        if (isOnCooldown(
+                                drowningCooldowns,
+                                damagedPlayer.getUUID(),
+                                config.cooldowns.drowning
+                        )) {
+                            return;
+                        }
+                    }
+
                     if (source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)
                             && !config.notifications.fire) {
                         return;
@@ -63,7 +87,14 @@ public class Playerlog implements ModInitializer {
                         return;
                     }
 
-                    if (damageTaken < config.damage.minimumDamage) {
+                    boolean lowHealth =
+                            damagedPlayer.getHealth()
+                                    < config.damage.lowHealthThreshold;
+
+                    boolean enoughDamage =
+                            damageTaken >= config.damage.minimumDamage;
+
+                    if (!enoughDamage && !lowHealth) {
                         return;
                     }
 
@@ -73,18 +104,23 @@ public class Playerlog implements ModInitializer {
                         return;
                     }
 
-                    boolean lowHealth =
-                            damagedPlayer.getHealth() < config.damage.lowHealthThreshold;
-
-                    if (damageTaken >= config.damage.minimumDamage || lowHealth) {
-                        Component message = createDamageMessage(
-                                damagedPlayer,
-                                source,
-                                damageTaken
-                        );
-
-                        notifyRecipients(server, message);
+                    if (!isDrowning) {
+                        if (isOnCooldown(
+                                damageCooldowns,
+                                damagedPlayer.getUUID(),
+                                config.cooldowns.damage
+                        )) {
+                            return;
+                        }
                     }
+
+                    Component message = createDamageMessage(
+                            damagedPlayer,
+                            source,
+                            damageTaken
+                    );
+
+                    notifyRecipients(server, message);
                 }
         );
 
@@ -407,5 +443,30 @@ public class Playerlog implements ModInitializer {
                 player.sendSystemMessage(message);
             }
         }
+    }
+
+    private static boolean isOnCooldown(
+            Map<UUID, Long> cooldowns,
+            UUID playerId,
+            double cooldownSeconds
+    ) {
+        if (cooldownSeconds <= 0) {
+            return false;
+        }
+
+        long now = System.currentTimeMillis();
+
+        Long lastNotification = cooldowns.get(playerId);
+
+        if (lastNotification != null) {
+            long cooldownMillis = (long) (cooldownSeconds * 1000);
+
+            if (now - lastNotification < cooldownMillis) {
+                return true;
+            }
+        }
+
+        cooldowns.put(playerId, now);
+        return false;
     }
 }

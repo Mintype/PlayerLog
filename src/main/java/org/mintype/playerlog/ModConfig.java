@@ -45,7 +45,7 @@ public class ModConfig {
     }
 
     public static class Drowning {
-        public int secondsRemaining = 5;
+        public double healthThreshold = 10.0; // hearts
     }
 
     public static class Recipients {
