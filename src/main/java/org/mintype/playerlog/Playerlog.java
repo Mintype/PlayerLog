@@ -7,7 +7,10 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,9 +18,15 @@ import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.level.GameType;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class Playerlog implements ModInitializer {
 
     public static final String MOD_ID = "playerlog";
+
+    private static final Map<UUID, Long> damageCooldowns = new HashMap<>();
 
     @Override
     public void onInitialize() {
@@ -90,20 +99,8 @@ public class Playerlog implements ModInitializer {
     ) {
         dispatcher.register(
                 Commands.literal("playerlog")
-                        .requires(source -> {
-                            // Allow console
-                            if (source.getEntity() == null) return true;
 
-                            // Allow operators
-                            if (source.getEntity() instanceof ServerPlayer player) {
-                                return source.getServer()
-                                        .getPlayerList()
-                                        .isOp(new NameAndId(player.getGameProfile()));
-                            }
-
-                            return false;
-                        })
-
+                        // /playerlog
                         .executes(context -> {
                             context.getSource().sendSuccess(
                                     () -> Component.literal(
@@ -118,7 +115,23 @@ public class Playerlog implements ModInitializer {
                             return 1;
                         })
 
+                        // /playerlog enable
                         .then(Commands.literal("enable")
+                                .requires(source -> {
+                                    // Allow console
+                                    if (source.getEntity() == null) return true;
+
+                                    // Allow operators
+                                    if (source.getEntity() instanceof ServerPlayer player) {
+                                        return source.getServer()
+                                                .getPlayerList()
+                                                .isOp(new NameAndId(
+                                                        player.getGameProfile()
+                                                ));
+                                    }
+
+                                    return false;
+                                })
                                 .executes(context -> {
                                     ModConfig.INSTANCE.enabled = true;
 
@@ -132,7 +145,23 @@ public class Playerlog implements ModInitializer {
                                     return 1;
                                 }))
 
+                        // /playerlog disable
                         .then(Commands.literal("disable")
+                                .requires(source -> {
+                                    // Allow console
+                                    if (source.getEntity() == null) return true;
+
+                                    // Allow operators
+                                    if (source.getEntity() instanceof ServerPlayer player) {
+                                        return source.getServer()
+                                                .getPlayerList()
+                                                .isOp(new NameAndId(
+                                                        player.getGameProfile()
+                                                ));
+                                    }
+
+                                    return false;
+                                })
                                 .executes(context -> {
                                     ModConfig.INSTANCE.enabled = false;
 
@@ -146,9 +175,24 @@ public class Playerlog implements ModInitializer {
                                     return 1;
                                 }))
 
+                        // /playerlog reload
                         .then(Commands.literal("reload")
-                                .executes(context -> {
+                                .requires(source -> {
+                                    // Allow console
+                                    if (source.getEntity() == null) return true;
 
+                                    // Allow operators
+                                    if (source.getEntity() instanceof ServerPlayer player) {
+                                        return source.getServer()
+                                                .getPlayerList()
+                                                .isOp(new NameAndId(
+                                                        player.getGameProfile()
+                                                ));
+                                    }
+
+                                    return false;
+                                })
+                                .executes(context -> {
                                     ModConfig.INSTANCE = ModConfig.load();
 
                                     context.getSource().sendSuccess(
@@ -160,25 +204,73 @@ public class Playerlog implements ModInitializer {
 
                                     return 1;
                                 }))
+
+                        // /playerlog tp <player>
+                        .then(Commands.literal("tp")
+                                .requires(source -> {
+
+                                    // Console is NOT allowed
+                                    if (!(source.getEntity() instanceof ServerPlayer player)) {
+                                        return false;
+                                    }
+
+                                    // Allow operators
+                                    if (source.getServer()
+                                            .getPlayerList()
+                                            .isOp(new NameAndId(
+                                                    player.getGameProfile()
+                                            ))) {
+                                        return true;
+                                    }
+
+                                    // Allow spectators
+                                    return player.gameMode
+                                            .getGameModeForPlayer()
+                                            == GameType.SPECTATOR;
+                                })
+                                .then(Commands.argument(
+                                                        "player",
+                                                        EntityArgument.player()
+                                                )
+                                                .executes(context -> {
+                                                    ServerPlayer target =
+                                                            EntityArgument.getPlayer(
+                                                                    context,
+                                                                    "player"
+                                                            );
+
+                                                    ServerPlayer executor =
+                                                            context.getSource()
+                                                                    .getPlayerOrException();
+
+                                                    executor.teleportTo(
+                                                            target.getX(),
+                                                            target.getY(),
+                                                            target.getZ()
+                                                    );
+
+                                                    context.getSource().sendSuccess(
+                                                            () -> Component.literal(
+                                                                    "Teleported to "
+                                                                            + target.getName()
+                                                                            .getString()
+                                                            ),
+                                                            false
+                                                    );
+
+                                                    return 1;
+                                                })
+                                )
+                        )
         );
 
         // /pl alias
         dispatcher.register(
                 Commands.literal("pl")
-                        .requires(source -> {
-                            // Allow console
-                            if (source.getEntity() == null) return true;
-
-                            // Allow operators
-                            if (source.getEntity() instanceof ServerPlayer player) {
-                                return source.getServer()
-                                        .getPlayerList()
-                                        .isOp(new NameAndId(player.getGameProfile()));
-                            }
-
-                            return false;
-                        })
-                        .redirect(dispatcher.getRoot().getChild("playerlog"))
+                        .redirect(
+                                dispatcher.getRoot()
+                                        .getChild("playerlog")
+                        )
         );
     }
 
@@ -202,15 +294,32 @@ public class Playerlog implements ModInitializer {
                         .withStyle(ChatFormatting.GRAY));
 
         if (config.damage.includeSource) {
-            message.append(Component.literal(" from ")
-                    .withStyle(ChatFormatting.GRAY));
+            message.append(
+                    Component.literal(" from ")
+                            .withStyle(ChatFormatting.GRAY)
+            );
 
             if (source.getEntity() instanceof ServerPlayer attacker) {
-                message.append(attacker.getName().copy()
-                        .withStyle(ChatFormatting.RED));
+                // Player attacked the player
+                message.append(
+                        attacker.getName().copy()
+                                .withStyle(ChatFormatting.RED)
+                );
+
+            } else if (source.getEntity() != null) {
+                // Mob / other entity attacked the player
+                message.append(
+                        source.getEntity().getDisplayName()
+                                .copy()
+                                .withStyle(ChatFormatting.RED)
+                );
+
             } else {
-                message.append(Component.literal(source.getMsgId())
-                        .withStyle(ChatFormatting.GOLD));
+                // Environmental damage
+                message.append(
+                        Component.literal(source.getMsgId())
+                                .withStyle(ChatFormatting.GOLD)
+                );
             }
         }
 
@@ -233,6 +342,43 @@ public class Playerlog implements ModInitializer {
                             player.blockPosition().getZ()
                     )
             ).withStyle(ChatFormatting.DARK_AQUA));
+        }
+
+        if (config.chat.includeTeleport) {
+            int x = player.blockPosition().getX();
+            int y = player.blockPosition().getY();
+            int z = player.blockPosition().getZ();
+
+            message.append(
+                    Component.literal(" ")
+                            .withStyle(ChatFormatting.GRAY)
+            );
+
+            message.append(
+                    Component.literal("[Teleport]")
+                            .withStyle(style -> style
+                                    .withColor(ChatFormatting.AQUA)
+                                    .withUnderlined(true)
+                                    .withClickEvent(
+                                            new ClickEvent.RunCommand(
+                                                    "/pl tp " + player.getName().getString()
+                                            )
+                                    )
+                                    .withHoverEvent(
+                                            new HoverEvent.ShowText(
+                                                    Component.literal(
+                                                            String.format(
+                                                                    "Teleport to %s\n(%d, %d, %d)",
+                                                                    player.getName().getString(),
+                                                                    x,
+                                                                    y,
+                                                                    z
+                                                            )
+                                                    )
+                                            )
+                                    )
+                            )
+            );
         }
 
         return message;

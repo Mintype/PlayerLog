@@ -55,7 +55,8 @@ public class ModConfig {
 
     public static class Chat {
         public String prefix = "[PlayerLog]";
-        public boolean includeCoordinates = false;
+        public boolean includeCoordinates = true;
+        public boolean includeTeleport = true;
     }
 
     public static class Cooldowns {
