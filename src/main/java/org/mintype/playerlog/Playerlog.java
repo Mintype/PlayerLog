@@ -115,6 +115,34 @@ public class Playerlog implements ModInitializer {
                         }
                     }
 
+                    // Extract attacker/source details
+                    String attackerStr;
+                    if (source.getEntity() instanceof ServerPlayer attacker) {
+                        attackerStr = attacker.getName().getString() + " (Player)";
+                    } else if (source.getEntity() != null) {
+                        attackerStr = source.getEntity().getDisplayName().getString();
+                    } else {
+                        attackerStr = source.getMsgId();
+                    }
+
+                    String posStr = String.format("%d, %d, %d (%s)",
+                            damagedPlayer.blockPosition().getX(),
+                            damagedPlayer.blockPosition().getY(),
+                            damagedPlayer.blockPosition().getZ(),
+                            damagedPlayer.level().dimension().identifier().getPath());
+
+                    String logDetails = String.format("Took %.1f damage (Blocked: %b)", damageTaken, blocked);
+
+                    // Log to daily file
+                    EventLogger.log(
+                            isDrowning ? "DROWNING" : "DAMAGE",
+                            damagedPlayer.getName().getString(),
+                            attackerStr,
+                            damagedPlayer.getHealth(),
+                            posStr,
+                            logDetails
+                    );
+
                     Component message = createDamageMessage(
                             damagedPlayer,
                             source,
@@ -162,6 +190,22 @@ public class Playerlog implements ModInitializer {
                 )) {
                     continue;
                 }
+
+                String posStr = String.format("%d, %d, %d (%s)",
+                        player.blockPosition().getX(),
+                        player.blockPosition().getY(),
+                        player.blockPosition().getZ(),
+                        player.level().dimension().identifier().getPath());
+
+                // Log creeper event to daily file
+                EventLogger.log(
+                        "CREEPER_THREAT",
+                        player.getName().getString(),
+                        "Creeper",
+                        player.getHealth(),
+                        posStr,
+                        "Targeted by creeper"
+                );
 
                 Component message = createCreeperThreatMessage(
                         player,
@@ -261,10 +305,7 @@ public class Playerlog implements ModInitializer {
                         // /playerlog enable
                         .then(Commands.literal("enable")
                                 .requires(source -> {
-                                    // Allow console
                                     if (source.getEntity() == null) return true;
-
-                                    // Allow operators
                                     if (source.getEntity() instanceof ServerPlayer player) {
                                         return source.getServer()
                                                 .getPlayerList()
@@ -272,7 +313,6 @@ public class Playerlog implements ModInitializer {
                                                         player.getGameProfile()
                                                 ));
                                     }
-
                                     return false;
                                 })
                                 .executes(context -> {
@@ -291,10 +331,7 @@ public class Playerlog implements ModInitializer {
                         // /playerlog disable
                         .then(Commands.literal("disable")
                                 .requires(source -> {
-                                    // Allow console
                                     if (source.getEntity() == null) return true;
-
-                                    // Allow operators
                                     if (source.getEntity() instanceof ServerPlayer player) {
                                         return source.getServer()
                                                 .getPlayerList()
@@ -302,7 +339,6 @@ public class Playerlog implements ModInitializer {
                                                         player.getGameProfile()
                                                 ));
                                     }
-
                                     return false;
                                 })
                                 .executes(context -> {
@@ -321,10 +357,7 @@ public class Playerlog implements ModInitializer {
                         // /playerlog reload
                         .then(Commands.literal("reload")
                                 .requires(source -> {
-                                    // Allow console
                                     if (source.getEntity() == null) return true;
-
-                                    // Allow operators
                                     if (source.getEntity() instanceof ServerPlayer player) {
                                         return source.getServer()
                                                 .getPlayerList()
@@ -332,7 +365,6 @@ public class Playerlog implements ModInitializer {
                                                         player.getGameProfile()
                                                 ));
                                     }
-
                                     return false;
                                 })
                                 .executes(context -> {
@@ -399,13 +431,9 @@ public class Playerlog implements ModInitializer {
                         // /playerlog tp <player>
                         .then(Commands.literal("tp")
                                 .requires(source -> {
-
-                                    // Console is NOT allowed
                                     if (!(source.getEntity() instanceof ServerPlayer player)) {
                                         return false;
                                     }
-
-                                    // Allow operators
                                     if (source.getServer()
                                             .getPlayerList()
                                             .isOp(new NameAndId(
@@ -413,8 +441,6 @@ public class Playerlog implements ModInitializer {
                                             ))) {
                                         return true;
                                     }
-
-                                    // Allow spectators
                                     return player.gameMode
                                             .getGameModeForPlayer()
                                             == GameType.SPECTATOR;
@@ -491,22 +517,17 @@ public class Playerlog implements ModInitializer {
             );
 
             if (source.getEntity() instanceof ServerPlayer attacker) {
-                // Player attacked the player
                 message.append(
                         attacker.getName().copy()
                                 .withStyle(ChatFormatting.RED)
                 );
-
             } else if (source.getEntity() != null) {
-                // Mob / other entity attacked the player
                 message.append(
                         source.getEntity().getDisplayName()
                                 .copy()
                                 .withStyle(ChatFormatting.RED)
                 );
-
             } else {
-                // Environmental damage
                 message.append(
                         Component.literal(source.getMsgId())
                                 .withStyle(ChatFormatting.GOLD)
